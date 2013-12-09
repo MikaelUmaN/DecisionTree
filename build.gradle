@@ -1,0 +1,25 @@
+// Applies scala plugin.
+// src in src/main/scala
+// test in src/test/scala
+
+apply plugin: 'scala'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.scala-lang:scala-library:2.10.3'
+}
+
+// Project info.
+version = '0.1'
+
+// Publishes to a directory.
+uploadArchives {
+    repositories {
+        flatDir {
+            dirs 'repos'
+        }
+    }
+}
