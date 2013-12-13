@@ -23,3 +23,14 @@ uploadArchives {
         }
     }
 }
+
+// Generate start script.
+import org.apache.tools.ant.filters.*
+task(startScriptsDev, type: Copy) {
+    from 'src/bin'
+    into 'build'
+    filter(ReplaceTokens, tokens: [classpath: sourceSets.main.runtimeClasspath.asPath, mainclass: 'com.rainysoft.decisiontree.application.Application'])
+}
+
+// Make copy of start script on every assemble.
+assemble.dependsOn startScriptsDev
