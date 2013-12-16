@@ -13,6 +13,15 @@ import scala.collection.immutable.HashSet
  */
 object Generator {
 
+  /** Splits samples based on the attribute.
+   *
+   * Returns a mapping from attribute value to list of samples.
+   */
+  def splitSamples(samples: Traversable[HashSet[(String, String)]], attr: String) = {
+    val samplesByAttrVal = samples.groupBy(s => s.find(x => x._1 == attr).get._2)
+    samplesByAttrVal
+  }
+
   /** Generates a tree using the given samples and the provided
    * list of all possible attributes.
    *
