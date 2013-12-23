@@ -1,7 +1,8 @@
 package com.rainysoft.decisiontree.tree
 
+import scala.math._
 import scala.collection.Traversable
-import scala.collection.immutable.HashSet
+import scala.collection.immutable.Map
 
 /** Singleton object used because Scala does not
  * allow bare functions as it has to comply with
@@ -17,9 +18,37 @@ object Generator {
    *
    * Returns a mapping from attribute value to list of samples.
    */
-  def splitSamples(samples: Traversable[HashSet[(String, String)]], attr: String) = {
-    val samplesByAttrVal = samples.groupBy(s => s.find(x => x._1 == attr).get._2)
+  def splitSamples(samples: Traversable[(Map[String, String], Int)], attribute: String) = {
+    val samplesByAttrVal = samples.groupBy(s => s._1(attribute))
     samplesByAttrVal
+  }
+
+  /** Calculates the entropy of a random variable.
+   *
+   * The distribution is defined based on the sample frequencies.
+   */
+  def entropy(sampleCounts: Traversable[Int]) = {
+    val totalCount = sampleCounts.sum
+    val s = sampleCounts.map(c => {
+        val pvk = c / totalCount
+        pvk * log10(pvk) / log10(2)
+    }).sum
+    -s
+  }
+
+  /** Calculates importance of the attribute.
+   *
+   * This is the information gain by splitting on this attribute relative to
+   * splitting on other attributes.
+   */
+  def importance(attribute: String, samples: Traversable[(Map[String, String], Int)]) = {
+    val splits = splitSamples(samples, attribute)
+    splits.map(s => {
+        val attributeValue = s._1
+        val sampleList = s._2
+        val sampleCountByClassification = sampleList.groupBy(sa => sa._2).map(sagr => sagr._2.size)
+        (sampleList.size / samples.size) * entropy(sampleCountByClassification)
+    }).sum
   }
 
   /** Generates a tree using the given samples and the provided
@@ -30,33 +59,45 @@ object Generator {
    * "symbol" is assumed to be a string, and any particular
    * values, for example "AAPL" are assumed to be strings.
    */
-  def generateTree(attributes: Traversable[String], samples: Traversable[HashSet[(String, String)]]) = {
+  def generateTree(attributes: Traversable[String], samples: Traversable[(Map[String, String], Int)]) = {
 
     // For recursive functions, we have to define
-    // the return type. Builds a subtree from the given
-    // samples and attributes left to split on. The plurality
-    // value of the parents are used to determine the classification
-    // in case of missing information in remaining samples.
-    def decTree(attrs: Traversable[String], ss: Traversable[HashSet[(String, String)]], pv: Int) = {
+    // the return type.
+    def decTree(attrs: Traversable[String], ss: Traversable[(Map[String, String], Int)], pv: Int): Tree = {
 
-      // Splits the samples into mapping from 
-      // attribute value to all matching samples.
-      def splitSamples(attr: String) = {
+      // Plurality value of these samples.
+      val cv = ss.groupBy(s => s._2).maxBy(gr => gr._2.size)._1
 
-        // Group by the value of samples for this particular attribute.
-        // val cannot be reassigned to.
-        val ssByAttrVal = ss.groupBy(s => s.find(x => x._1 == attr).get._2)
-        ssByAttrVal
+      if (ss.size == 0) {
+
+        // No more samples, Use plurality value of parents.
+        return Leaf(pv)
+      } else if (ss.groupBy(s => s._2).size == 1) {
+        
+        // Same classification on all samples.
+        return Leaf(ss.head._2)
+      } else if (attrs.size == 0) {
+
+        // No more samples to split on. Use plurality value of the samples.
+        Leaf(cv)
+      } else {
+
+        // Find attribute to split on.
+        val importances = attrs.map(a => (a, importance(a, ss)))
+        val splitAttr = importances.minBy(imp => imp._2)._1
+        val remainingAttrs = attrs.filterNot(a => a == splitAttr)
+
+        // Split on the attribute.
+        // For each resulting split, make a recursive call
+        // and create a branch.
+        val splits = splitSamples(ss, splitAttr)
+        val subTree = SubTree(splitAttr, splits.map(s => s._1 -> decTree(remainingAttrs, s._2, cv)))
+        return subTree
       }
-
-      splitSamples("MyAttribute")
-      //return Leaf(pv)
     }
 
-    // If we add return statement, then
-    // we have to also declare the return type.
-    // If we just have this line, then type inference
-    // works.
-    decTree(attributes, samples, 2)
+    // Get the plurality value of the samples.
+    val pv = samples.groupBy(s => s._2).maxBy(sgr => sgr._2.size)._2.size
+    decTree(attributes, samples, pv)
   }
 }
