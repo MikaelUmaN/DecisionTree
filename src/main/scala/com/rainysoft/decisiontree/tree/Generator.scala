@@ -4,13 +4,8 @@ import scala.math._
 import scala.collection.Traversable
 import scala.collection.immutable.Map
 
-/** Singleton object used because Scala does not
- * allow bare functions as it has to comply with
- * Java and JVM etc.
+/** Singleton containing methods to generate a decision tree.
  *
- * Note that a scala object is different from a
- * scala class. There is only one object of type
- * Generator.
  */
 object Generator {
 
@@ -18,7 +13,7 @@ object Generator {
    *
    * Returns a mapping from attribute value to list of samples.
    */
-  def splitSamples(samples: Traversable[(Map[String, String], Int)], attribute: String) = {
+  def splitSamples[A,B](samples: Traversable[(Map[String, A], B)], attribute: String) = {
     val samplesByAttrVal = samples.groupBy(s => s._1(attribute))
     samplesByAttrVal
   }
@@ -41,8 +36,8 @@ object Generator {
    * This is the information gain by splitting on this attribute relative to
    * splitting on other attributes.
    */
-  def importance(attribute: String, samples: Traversable[(Map[String, String], Int)]) = {
-    val splits = splitSamples(samples, attribute)
+  def importance[A,B](attribute: String, samples: Traversable[(Map[String, A], B)]) = {
+    val splits = splitSamples[A,B](samples, attribute)
     splits.map(s => {
         val attributeValue = s._1
         val sampleList = s._2
@@ -51,19 +46,14 @@ object Generator {
     }).sum
   }
 
-  /** Generates a tree using the given samples and the provided
-   * list of all possible attributes.
+  /** Generates a tree using the given samples and the provided list of all possible attributes.
    *
-   * Currently attributes are hard coded to come as string,string
-   * key value pairs. The particular attribute type, for example
-   * "symbol" is assumed to be a string, and any particular
-   * values, for example "AAPL" are assumed to be strings.
    */
-  def generateTree(attributes: Traversable[String], samples: Traversable[(Map[String, String], Int)]) = {
+  def generateTree[A,B](attributes: Traversable[String], samples: Traversable[(Map[String, A], B)]) = {
 
     // For recursive functions, we have to define
     // the return type.
-    def decTree(attrs: Traversable[String], ss: Traversable[(Map[String, String], Int)], pv: Int): Tree = {
+    def decTree[A,B](attrs: Traversable[String], ss: Traversable[(Map[String, A], B)], pv: B): Tree[A,B] = {
 
       // Plurality value of these samples.
       val cv = ss.groupBy(s => s._2).maxBy(gr => gr._2.size)._1
@@ -71,33 +61,33 @@ object Generator {
       if (ss.size == 0) {
 
         // No more samples, Use plurality value of parents.
-        return Leaf(pv)
+        return Leaf[A,B](pv)
       } else if (ss.groupBy(s => s._2).size == 1) {
         
         // Same classification on all samples.
-        return Leaf(ss.head._2)
+        return Leaf[A,B](ss.head._2)
       } else if (attrs.size == 0) {
 
         // No more samples to split on. Use plurality value of the samples.
-        Leaf(cv)
+        Leaf[A,B](cv)
       } else {
 
         // Find attribute to split on.
-        val importances = attrs.map(a => (a, importance(a, ss)))
+        val importances = attrs.map(a => (a, importance[A,B](a, ss)))
         val splitAttr = importances.minBy(imp => imp._2)._1
         val remainingAttrs = attrs.filterNot(a => a == splitAttr)
 
         // Split on the attribute.
         // For each resulting split, make a recursive call
         // and create a branch.
-        val splits = splitSamples(ss, splitAttr)
-        val subTree = SubTree(splitAttr, splits.map(s => s._1 -> decTree(remainingAttrs, s._2, cv)))
+        val splits = splitSamples[A,B](ss, splitAttr)
+        val subTree = SubTree[A,B](splitAttr, splits.map(s => s._1 -> decTree(remainingAttrs, s._2, cv)))
         return subTree
       }
     }
 
     // Get the plurality value of the samples.
-    val pv = samples.groupBy(s => s._2).maxBy(sgr => sgr._2.size)._2.size
-    decTree(attributes, samples, pv)
+    val pv = samples.groupBy(s => s._2).maxBy(sgr => sgr._2.size)._1
+    decTree[A,B](attributes, samples, pv)
   }
 }

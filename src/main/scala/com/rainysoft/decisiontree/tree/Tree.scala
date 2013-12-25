@@ -8,13 +8,13 @@ import scala.collection.immutable.Map
  * per each attribute value. Each branch is then a
  * tree.
  */
-abstract class Tree
+abstract class Tree[A,B]
 
 /**
  * A subtree. An attribute that splits the tree into nodes with
  * one node per possible attribute value.
  */
-case class SubTree(attribute: String, branches: Map[String, Tree]) extends Tree
+case class SubTree[A,B](attribute: String, branches: Map[A, Tree[A,B]]) extends Tree[A,B]
 
 /** A leaf that contains the classification value. */
-case class Leaf(value: Int) extends Tree
+case class Leaf[A,B](value: B) extends Tree[A,B]
