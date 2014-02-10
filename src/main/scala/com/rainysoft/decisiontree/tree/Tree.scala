@@ -1,6 +1,5 @@
 package com.rainysoft.decisiontree.tree
 
-import scala.collection.Traversable
 import scala.collection.immutable.Map
 
 /** A tree is either a leaf with a classification value
